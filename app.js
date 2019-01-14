@@ -22,36 +22,21 @@ if (app.get('env') === 'production') {
 
 
 
-app.use(
-    function(req, res, next){
-        next();
-        var _end = res.end;
-        var ended = false;
 
-        res.end = function end(chunk, encoding) {
-
-            if (ended) {
-                return false;
-              }
-        
-              ended = true;
-
-            _end.call(res, chunk, encoding);
+app.post('/user/login',function (req,res){
+    var msg = req.body;
+    var code = msg.code;
+    res.json({code:code});
+});
 
 
-        }
-
-       
-    }
-);
-
-
+app.post('/user/weakLogin',function (req,res){
+    var msg = req.body;
+    var code = msg.code;
+    res.json({code:code});
+});
 
 
-app.get('/', function (req, res) {
-    req.session.userName='小李宝';
-  res.send('Hello World')
-})
  
 app.listen(port,()=>{console.log("server listening on port "+port)})
 
