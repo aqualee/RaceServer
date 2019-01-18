@@ -86,7 +86,7 @@ var getDataFromDB = function(){
 
 }
 
-app.get('/user/login',function (req,res){
+/*app.get('/user/login',function (req,res){
     //var msg = req.body;
     var code = 222;    
     
@@ -100,7 +100,7 @@ app.get('/user/login',function (req,res){
             console.log(ret);
         }
     });   
-});
+});*/
 
 app.post('/user/login',function (req,res){
     var msg = req.body;
@@ -155,18 +155,39 @@ app.post('/user/weakLogin',function (req,res){
     }    
 });
 
+//todo 在redis 里面设置这个人的邀请好友关系
+function setInviteRelation(masterId, friendId,friendHead){
+
+}
+
+//todo redis 里面设置好友分享信息
+function setShareRelation(masterId,friendId,friendHead){
+
+}
+
+
+
+var getUserInfo=function(openId){
+        return new Promise(function(reslove,reject){
+
+            var sql='select * from user where openId = ?';
+            var args=[openId];
+            pool.query(sql,args,function(err,res,field){
+                if(err){
+                    //db 出错
+                    reject(err);
+                    return;
+                }
+                reslove(res);
+            });
+    });
+}
+
 
 //取玩家数据
 app.post('/user/getData',function(req,res){
     if(req.session && req.session.openId){
-        var sql='select * from user where openId = ?';
-        var args=[req.session.openId];
-        pool.query(sql,args,function(err,res,field){
-            if(err){
-                //db 出错
-                res.send(getParam(constants.CLIENT_STATUS_ERROR));
-                return;
-            }
+        getUserInfo(req.session.openId).then(function (res){
             if(res && res.length > 0){
                 var rs = res[0];
                 req.session.isDBCreate = true;
@@ -174,7 +195,12 @@ app.post('/user/getData',function(req,res){
             }else{
                 //没有数据
                 res.send(getParam(constants.CLIENT_STATUS_OK));
+                //判断是否有邀请
             }
+
+        }).catch(function(err){
+            //db 出错
+            res.send(getParam(constants.CLIENT_STATUS_ERROR));
         });
     }else{
         //没有session ，需要重新登入
