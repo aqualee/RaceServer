@@ -19,8 +19,7 @@ var app = express()
 var redisClient= redis.createClient(
     {
         host:'127.0.0.1',
-        port:6379,
-        ttl:24*60*60
+        port:6379
     }
 );
 
@@ -34,11 +33,22 @@ var pool  = mysql.createPool({
   });
 
 
+var genSessionID = function (req,res,next){
+
+    next();
+}
+
+
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
+app.use(genSessionID);
 app.use(session({
+   /* genid: function(req) {
+        return genuuid() // use UUIDs for session IDs
+      },*/
     store: new RedisStore({
-        client :redisClient
+        client :redisClient,
+        ttl:3*60*60
     }),
     secret: 'keyboard cat',
     resave: false,
@@ -138,7 +148,7 @@ app.post('/user/weakLogin',function (req,res){
     var code = msg.code;
 
     if(req.session.openId){
-        res.send(getParam(constants.CLIENT_STATUS_OK));
+        res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.openId}));
     }else{
         loginWX2(code,(err,ret)=>{
             if(err){
@@ -149,7 +159,7 @@ app.post('/user/weakLogin',function (req,res){
                 req.session.session_key= ret.sessionKey;
                 
                 console.log(ret);
-                res.send(getParam(constants.CLIENT_STATUS_OK));
+                res.send(getParam(constants.CLIENT_STATUS_OK,{openId:ret.openId}));
             }
         });   
     }    
@@ -185,40 +195,43 @@ var getUserInfo=function(openId){
 
 
 //取玩家数据
-app.post('/user/getData',function(req,res){
+app.post('/user/getData',function(req,response){
     if(req.session && req.session.openId){
         getUserInfo(req.session.openId).then(function (res){
             if(res && res.length > 0){
                 var rs = res[0];
                 req.session.isDBCreate = true;
-                res.send(getParam(constants.CLIENT_STATUS_OK,rs.data));
+                response.send(getParam(constants.CLIENT_STATUS_OK,JSON.parse(rs.data)));
             }else{
                 //没有数据
-                res.send(getParam(constants.CLIENT_STATUS_OK));
+                response.send(getParam(constants.CLIENT_STATUS_OK));
                 //判断是否有邀请
             }
 
         }).catch(function(err){
             //db 出错
-            res.send(getParam(constants.CLIENT_STATUS_ERROR));
+            console.log(err);
+            response.send(getParam(constants.CLIENT_STATUS_ERROR));
         });
     }else{
         //没有session ，需要重新登入
-        res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE));
+        response.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE));
     }
 });
 
 //保存玩家数据
 app.post('/user/saveData',function(req,res){
-    var jdata = req.body.data;
+    var jdata = req.body.value;
     if(req.session && req.session.openId){
+        var loginTime = Date.now();
         if(req.session.isDBCreate){
             //update
-            var sql='update user set data = ? where id= ?';
-            var args = [jdata,req.session.openId];
-            pool.query(sql,args,function(err,res){
+            var sql='update user set data = ? , lastLoginTime = ? where openId = ?';
+            var args = [jdata,loginTime,req.session.openId];
+            pool.query(sql,args,function(err){
                 if(err){
                     //db 出错
+                    console.log(err);
                     res.send(getParam(constants.CLIENT_STATUS_ERROR));
                     return;
                 }                
@@ -227,13 +240,14 @@ app.post('/user/saveData',function(req,res){
         }else{
             //insert
 
-            var sql = 'insert into user (openId,data,userInfo,lastLoginTime values (?,?,?,?))';
-            var loginTime = Date.now();
-            var userInfo = req.session.isAuth?req.session.userInfo:null;
+            var sql = 'insert into user (openId,data,userInfo,lastLoginTime) values (?,?,?,?)';
+            
+            var userInfo = req.session.isAuth? JSON.stringify(req.session.userInfo):null;
             var args = [req.session.openId, jdata, userInfo , loginTime];
-            pool.query(sql,args,function(err,res){
+            pool.query(sql,args,function(err){
                 if(err){
                     //db 出错
+                    console.log(err);
                     res.send(getParam(constants.CLIENT_STATUS_ERROR));
                     return;
                 }
@@ -248,7 +262,7 @@ app.post('/user/saveData',function(req,res){
 });
 
 //看其他玩家数据
-app.post('/user/saveData',function(req,res){
+app.post('/user/getUserInfo',function(req,res){
     var openId = req.body.openId;
 
 
