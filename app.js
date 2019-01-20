@@ -322,9 +322,9 @@ app.post('/user/getSign',function(req,res){
             var retObj = [];
             for (var i=0;i<constants.SIGN_GOLD.length;i++ ){
                 if(i<day){
-                    retObj.push({sign_day:i,sign_is_receive:1,sign_gold:constants.SIGN_GOLD[i]});
+                    retObj.push({sign_day:i,sign_is_receive:2,sign_gold:constants.SIGN_GOLD[i]});
                 }else if(i == day){
-                    retObj.push({sign_day:i,sign_is_receive:isSign?1:0,sign_gold:constants.SIGN_GOLD[i]});
+                    retObj.push({sign_day:i,sign_is_receive:isSign?2:1,sign_gold:constants.SIGN_GOLD[i]});
                 }else {
                     retObj.push({sign_day:i,sign_is_receive:0,sign_gold:constants.SIGN_GOLD[i]});
                 }
