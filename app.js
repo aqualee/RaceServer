@@ -271,6 +271,93 @@ app.post('/user/getUserInfo',function(req,res){
 });
 
 
+function afterOneDay(before){
+    var beforeDate = new Date(before);
+    beforeDate.setHours(1);
+    beforeDate.setMinutes(0);
+    beforeDate.setSeconds(0);
+    beforeDate.setMilliseconds(0);
+
+    var now = new Date();
+    now.setHours(1);
+    now.setMinutes(0);
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+
+    return now > beforeDate;
+}
+
+
+//签到信息
+app.post('/user/getSign',function(req,res){
+    if(req.session && req.session.openId){
+            //今天是哪一天
+            //是否已经签到
+            if(!req.session.signDay){
+                req.session.signDay=0;            
+            }
+
+            if(!req.session.signDate){
+                req.session.signDate = 0;         
+            }
+
+
+            var day;
+            var isSign;
+            if(afterOneDay(req.session.signDate)){
+                if(req.session.signDay >= 7){
+                    req.session.signDay = 0;
+                }
+                //过了一天
+                day = req.session.signDay;
+                isSign = false;
+                //response.send(getParam(constants.CLIENT_STATUS_OK,{day:req.session.signDay,isSign:false }));
+            }else{
+                //签到过来
+                day = req.session.signDay-1;
+                isSign = true;
+                //response.send(getParam(constants.CLIENT_STATUS_OK,{day:req.session.signDay-1,isSign:true }));
+            }
+
+            var retObj = [];
+            for (var i=0;i<constants.SIGN_GOLD.length;i++ ){
+                if(i<day){
+                    retObj.push({sign_day:i,sign_is_receive:1,sign_gold:constants.SIGN_GOLD[i]});
+                }else if(i == day){
+                    retObj.push({sign_day:i,sign_is_receive:isSign?1:0,sign_gold:constants.SIGN_GOLD[i]});
+                }else {
+                    retObj.push({sign_day:i,sign_is_receive:0,sign_gold:constants.SIGN_GOLD[i]});
+                }
+            }
+            
+            res.send(getParam(constants.CLIENT_STATUS_OK,retObj));
+    }else{
+        res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE));
+    }
+});
+
+
+//执行签到
+app.post('/user/doSign',function(req,res){
+    if(req.session && req.session.openId){
+            if(afterOneDay(req.session.signDate)){
+                //过了一天,可以签到
+                req.session.signDay++;
+                req.session.signDate = Date.now();
+                res.send(getParam(constants.CLIENT_STATUS_OK));
+            }else{
+                //签到过了
+                res.send(getParam(constants.CLIENT_STATUS_ERROR));
+            }
+    }else{
+        res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE));
+    }
+});
+
+
+
+
+
  
 const server =app.listen(port,()=>{console.log("server listening on port "+port)})
 
