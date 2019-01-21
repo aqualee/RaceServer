@@ -355,8 +355,29 @@ app.post('/user/doSign',function(req,res){
 });
 
 
+app.get('/sys/getSW',function (req,res){
+   redisClient.hget(constants.SYSTEM_CONFIG_KEY,"shareSwitch",(err,v)=>{
+        v = v?parseInt(v):0;
+        res.send(getParam(constants.CLIENT_STATUS_OK,{open:v}));
+   })
+});
+
+app.get('/sys/setSW',function (req,res){
+
+    if(req.query.a == "1"){
+        redisClient.hset(constants.SYSTEM_CONFIG_KEY,"shareSwitch",1);
+        res.send("分享打开");
+        return;
+
+    }else if(req.query.a == "0"){
+        redisClient.hset(constants.SYSTEM_CONFIG_KEY,"shareSwitch",0);
+        res.send("分享关闭");
+        return;
+    }
+    res.send("参数错误");
 
 
+});
 
  
 const server =app.listen(port,()=>{console.log("server listening on port "+port)})
