@@ -48,7 +48,7 @@ app.use(session({
       },*/
     store: new RedisStore({
         client :redisClient,
-        ttl:3*60*60
+        ttl:12*60*60
     }),
     secret: 'keyboard cat',
     resave: false,
@@ -68,11 +68,11 @@ if (app.get('env') === 'production') {
  * @param {*} status 
  * @param {*} data 
  */
-var getParam = function(status,data){
+var getParam = function(status,data={},msg=null){
     if(data === undefined){
         data = {};
     }
-    return {status:status,result:data};
+    return {status:status,result:data,msg:msg};
 }
 
 
@@ -118,11 +118,13 @@ app.post('/user/login',function (req,res){
 
     if(req.session.isAuth){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.userInfo.openId}));
+        setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl);
     }else{
         loginWX2(code,(err,ret)=>{
             if(err){
                 console.log(err);
-                res.send(getParam(constants.CLIENT_STATUS_ERROR,err));       
+                res.send(getParam(constants.CLIENT_STATUS_ERROR,err));
+                return;       
             }else{
                 req.session.openId= ret.openId;
                 var sessionKey = req.session.session_key= ret.sessionKey;
@@ -135,10 +137,11 @@ app.post('/user/login',function (req,res){
                 req.session.isAuth = true;
     
                 res.send(getParam(constants.CLIENT_STATUS_OK,{openId:userInfo.openId}));
-    
+                setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl);
+
             }
         });
-    }   
+    }
 });
 
 // 在微信环境下可以取到     console.log(xhr.http.getResponseHeader("set-cookie"));
@@ -149,31 +152,104 @@ app.post('/user/weakLogin',function (req,res){
 
     if(req.session.openId){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.openId}));
+        setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
     }else{
         loginWX2(code,(err,ret)=>{
             if(err){
                 console.log(err);
-                res.send(getParam(constants.CLIENT_STATUS_ERROR,err));            
+                res.send(getParam(constants.CLIENT_STATUS_ERROR,err));
+                return;            
             }else{
                 req.session.openId= ret.openId;
                 req.session.session_key= ret.sessionKey;
                 
                 console.log(ret);
                 res.send(getParam(constants.CLIENT_STATUS_OK,{openId:ret.openId}));
+                setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
             }
         });   
-    }    
+    } 
 });
 
+
+
+
+
 //todo 在redis 里面设置这个人的邀请好友关系
-function setInviteRelation(masterId, friendId,friendHead){
+function setInviteRelation(invite_type, masterId, friendId,friendHead){
+    if(invite_type == null || masterId == null){
+        return;
+    }
 
+    if(invite_type == "invite_diamond"){
+        
+    }else if(invite_type =="invite_help"){
+        redisClient.hget("openId:"+masterId ,"friendHelp",(err,v)=>{
+            v = v || {};
+            if(v.hasOwnProperty(friendId)){            
+                if(v[friendId][1] == false && afterOneDay(v[friendId][0]) ){
+                    v[friendId][1] = true;   
+                    redisClient.hset("openId:"+masterId,"friendHelp",v);
+                }            
+            }else{
+                v[friendId] = [0,true,friendHead]; //上次领奖的时间戳,是否领过,头像
+                redisClient.hset("openId:"+masterId,"friendHelp",v);
+            }        
+       })
+    }
 }
 
-//todo redis 里面设置好友分享信息
-function setShareRelation(masterId,friendId,friendHead){
 
-}
+
+//获取助力好友
+app.post('/invite/getListByFriendAssist',function (req,res){
+    redisClient.hget("openId:"+req.session.openId ,"friendHelp",(err,v)=>{
+        v = v || {};
+        var  arr = [];
+        var i=0;
+        for(var k in v){
+            if(v[k][1]){
+                arr.push({openId:k,headUrl:v[k][2]});
+                i++;
+                if(i>=3){
+                    break;
+                }
+            }
+        }
+
+        req.session.friendHelpParam= arr;
+        res.send(getParam(constants.CLIENT_STATUS_OK,arr));
+    });
+});
+
+
+app.post('/invite/getFriendAward',function (req,res){
+    if(req.session.friendHelpParam == null){
+        res.send(getParam(constants.CLIENT_STATUS_ERROR,{},"参数未找到"));
+        return;
+    }
+    if(req.session.friendHelpParam.length<3){
+        res.send(getParam(constants.CLIENT_STATUS_ERROR,{},"好友数量不够"));
+        return;
+    }
+
+    redisClient.hget("openId:"+req.session.openId ,"friendHelp",(err,v)=>{
+        v = v || {};
+        for(var fid of req.session.friendHelpParam){
+            v[fid][1] = false;
+            v[fid][0] = Date.now();            
+        }
+        
+        res.send(getParam(constants.CLIENT_STATUS_OK));
+        //清理一下,防止内存泄漏
+        for(var k in v){
+            if(v[k][1]== false && afterOneDay(v[k][0]))
+            {
+                delete v[k];
+            }
+        }
+    });
+});
 
 
 
@@ -204,7 +280,7 @@ app.post('/user/getData',function(req,response){
                 response.send(getParam(constants.CLIENT_STATUS_OK,JSON.parse(rs.data)));
             }else{
                 //没有数据
-                response.send(getParam(constants.CLIENT_STATUS_OK));
+                response.send(getParam(constants.CLIENT_STATUS_OK,{userInfo:null}));
                 //判断是否有邀请
             }
 
