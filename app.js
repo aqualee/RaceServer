@@ -96,21 +96,9 @@ var getDataFromDB = function(){
 
 }
 
-/*app.get('/user/login',function (req,res){
-    //var msg = req.body;
-    var code = 222;    
-    
-    loginWX2(code,(err,ret)=>{
-        if(err){
-            console.log(err);
-            res.json(err);            
-        }else{
-            req.session.openId= ret.openId;
-
-            console.log(ret);
-        }
-    });   
-});*/
+app.get('/',function (req,res){
+    res.send("server is ok");
+});
 
 app.post('/user/login',function (req,res){
     var msg = req.body;
