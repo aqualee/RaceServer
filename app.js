@@ -8,7 +8,7 @@ var redis = require('redis');
 var mysql = require('mysql');
 
 
-const co = require('co');
+//const co = require('co');
 const constants= require('./constants');
 
 const port =3000; 
@@ -103,7 +103,7 @@ app.post('/user/login',function (req,res){
 
     if(req.session.isAuth){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.userInfo.openId}));
-        setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl);
+        setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl,req.session.userInfo.nickName);
     }else{
         login({appId, appSecret,code}).then(function(ret){
             req.session.openId= ret.openId;
@@ -117,7 +117,7 @@ app.post('/user/login',function (req,res){
             req.session.isAuth = true;
 
             res.send(getParam(constants.CLIENT_STATUS_OK,{openId:userInfo.openId}));
-            setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl);
+            setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl,req.session.userInfo.nickName);
         }).catch(function(err){
             console.log(err);
             res.send(getParam(constants.CLIENT_STATUS_ERROR,err));
@@ -151,32 +151,87 @@ app.post('/user/weakLogin',function (req,res){
 });
 
 
+const INVITE_KEY= "invite";
+const FRIEND_HELP_KEY="friendHelp";
 
 
-
-//todo 在redis 里面设置这个人的邀请好友关系
-function setInviteRelation(invite_type, masterId, friendId,friendHead){
+//在redis 里面设置这个人的邀请好友关系
+function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName){
     if(invite_type == null || masterId == null){
         return;
     }
 
     if(invite_type == "invite_diamond"){
-        
+        //看数据库有没有，没有就是新用户
+        getUserInfo(friendId).then((res)=>{
+            if(res && res.length > 0){
+            }else{
+                redisClient.hget("openId:"+masterId ,INVITE_KEY,(err,v)=>{
+                    v = v || {};
+                    if(v.hasOwnProperty(friendId)){
+
+                               
+                    }else{
+                        v[friendId] = [friendHead,friendName]; //头像
+                        redisClient.hset("openId:"+masterId,INVITE_KEY,v);
+                    }
+
+            })
+            }
+        }
+        )                
     }else if(invite_type =="invite_help"){
-        redisClient.hget("openId:"+masterId ,"friendHelp",(err,v)=>{
+        redisClient.hget("openId:"+masterId ,FRIEND_HELP_KEY,(err,v)=>{
             v = v || {};
             if(v.hasOwnProperty(friendId)){            
                 if(v[friendId][1] == false && afterOneDay(v[friendId][0]) ){
                     v[friendId][1] = true;   
-                    redisClient.hset("openId:"+masterId,"friendHelp",v);
+                    redisClient.hset("openId:"+masterId,FRIEND_HELP_KEY,v);
                 }            
             }else{
-                v[friendId] = [0,true,friendHead]; //上次领奖的时间戳,是否领过,头像
-                redisClient.hset("openId:"+masterId,"friendHelp",v);
+                v[friendId] = [0,true,friendHead,friendName]; //上次领奖的时间戳,是否领过,头像,名字
+                redisClient.hset("openId:"+masterId,FRIEND_HELP_KEY,v);
             }        
        })
     }
 }
+
+
+//获取邀请好友列表
+app.post('/invite/getListByInvite',function (req,res){
+    if(req.session.openId==null){
+        res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE,{},"session 过期"));
+        return;
+    }
+    redisClient.hget("openId:"+req.session.openId ,INVITE_KEY,(err,v)=>{
+        v = v || {};
+        var  arr = [];
+        for(var k in v){
+                arr.push({invite_id:k,user_avatar_url:v[k][0],invite_is_receive:1,user_nickname:v[k][1]});
+        }
+        res.send(getParam(constants.CLIENT_STATUS_OK,arr));
+    });
+});
+
+
+//邀请好友领奖
+app.post('/invite/getInviteAward',function (req,res){
+    if(req.session.openId==null){
+        res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE,{},"session 过期"));
+        return;
+    }
+    let inviteId = req.body.invite_id;
+    redisClient.hget("openId:"+req.session.openId ,INVITE_KEY,(err,v)=>{
+        v = v || {};
+        if(inviteId in v){
+            delete v[inviteId];
+            res.send(getParam(constants.CLIENT_STATUS_OK));
+            redisClient.hset("openId:"+req.session.openId,INVITE_KEY,v);
+            return;
+        }
+        res.send(getParam(constants.CLIENT_STATUS_ERROR));
+    });
+});
 
 
 
@@ -186,13 +241,13 @@ app.post('/invite/getListByFriendAssist',function (req,res){
         res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE,{},"session 过期"));
         return;
     }
-    redisClient.hget("openId:"+req.session.openId ,"friendHelp",(err,v)=>{
+    redisClient.hget("openId:"+req.session.openId ,FRIEND_HELP_KEY,(err,v)=>{
         v = v || {};
         var  arr = [];
         var i=0;
         for(var k in v){
             if(v[k][1]){
-                arr.push({openId:k,headUrl:v[k][2]});
+                arr.push({invite_id:k,user_avatar_url:v[k][2],user_nickname:v[k][3]});
                 i++;
                 if(i>=3){
                     break;
@@ -221,7 +276,7 @@ app.post('/invite/getFriendAward',function (req,res){
         return;
     }
 
-    redisClient.hget("openId:"+req.session.openId ,"friendHelp",(err,v)=>{
+    redisClient.hget("openId:"+req.session.openId ,FRIEND_HELP_KEY,(err,v)=>{
         v = v || {};
         for(var fid of req.session.friendHelpParam){
             v[fid][1] = false;
@@ -236,6 +291,8 @@ app.post('/invite/getFriendAward',function (req,res){
                 delete v[k];
             }
         }
+
+        redisClient.hset("openId:"+req.session.openId,FRIEND_HELP_KEY,v);
     });
 });
 

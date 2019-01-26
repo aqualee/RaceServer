@@ -1,6 +1,6 @@
 const url = require('url');
-const co = require('co');
-const pify = require('pify');
+//const co = require('co');
+//const pify = require('pify');
 const request = require('request');
 
 class LoginError extends Error {
