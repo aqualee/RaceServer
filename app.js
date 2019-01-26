@@ -48,7 +48,7 @@ app.use(session({
       },*/
     store: new RedisStore({
         client :redisClient,
-        ttl:12*60*60
+        ttl:24*60*60
     }),
     secret: 'keyboard cat',
     resave: false,
@@ -76,7 +76,7 @@ var getParam = function(status,data={},msg=null){
 }
 
 
-var loginWX2 = co.wrap(function*  loginWX(code,callback){
+/*var loginWX2 = co.wrap(function*  loginWX(code,callback){
 
     var obj;
     try{
@@ -89,28 +89,13 @@ var loginWX2 = co.wrap(function*  loginWX(code,callback){
     }
 
     callback(null,obj);
-});
-
-
-var getDataFromDB = function(){
-
-}
-
-/*app.get('/user/login',function (req,res){
-    //var msg = req.body;
-    var code = 222;    
-    
-    loginWX2(code,(err,ret)=>{
-        if(err){
-            console.log(err);
-            res.json(err);            
-        }else{
-            req.session.openId= ret.openId;
-
-            console.log(ret);
-        }
-    });   
 });*/
+
+
+
+app.get('/',function (req,res){
+    res.send("server is ok");
+});
 
 app.post('/user/login',function (req,res){
     var msg = req.body;
@@ -120,26 +105,22 @@ app.post('/user/login',function (req,res){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.userInfo.openId}));
         setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl);
     }else{
-        loginWX2(code,(err,ret)=>{
-            if(err){
-                console.log(err);
-                res.send(getParam(constants.CLIENT_STATUS_ERROR,err));
-                return;       
-            }else{
-                req.session.openId= ret.openId;
-                var sessionKey = req.session.session_key= ret.sessionKey;
-                
-                var iv = decodeURIComponent(msg.iv);
-                var encryptData = decodeURIComponent(msg.encrypted_data);
-                const wxBiz = new WXBizDataCrypt(appId, sessionKey);
-                const userInfo = wxBiz.decryptData(encryptData, iv);
-                req.session.userInfo = userInfo;
-                req.session.isAuth = true;
-    
-                res.send(getParam(constants.CLIENT_STATUS_OK,{openId:userInfo.openId}));
-                setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl);
+        login({appId, appSecret,code}).then(function(ret){
+            req.session.openId= ret.openId;
+            var sessionKey = req.session.session_key= ret.sessionKey;
+            
+            var iv = decodeURIComponent(msg.iv);
+            var encryptData = decodeURIComponent(msg.encrypted_data);
+            const wxBiz = new WXBizDataCrypt(appId, sessionKey);
+            const userInfo = wxBiz.decryptData(encryptData, iv);
+            req.session.userInfo = userInfo;
+            req.session.isAuth = true;
 
-            }
+            res.send(getParam(constants.CLIENT_STATUS_OK,{openId:userInfo.openId}));
+            setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl);
+        }).catch(function(err){
+            console.log(err);
+            res.send(getParam(constants.CLIENT_STATUS_ERROR,err));
         });
     }
 });
@@ -154,20 +135,18 @@ app.post('/user/weakLogin',function (req,res){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.openId}));
         setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
     }else{
-        loginWX2(code,(err,ret)=>{
-            if(err){
-                console.log(err);
-                res.send(getParam(constants.CLIENT_STATUS_ERROR,err));
-                return;            
-            }else{
-                req.session.openId= ret.openId;
-                req.session.session_key= ret.sessionKey;
-                
-                console.log(ret);
-                res.send(getParam(constants.CLIENT_STATUS_OK,{openId:ret.openId}));
-                setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
-            }
-        });   
+        login({appId, appSecret,code}).then(function(ret){
+            req.session.openId= ret.openId;
+            req.session.session_key= ret.sessionKey;
+            
+            console.log(ret);
+            res.send(getParam(constants.CLIENT_STATUS_OK,{openId:ret.openId}));
+            setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
+
+        }).catch(function(err){
+            console.log(err);
+            res.send(getParam(constants.CLIENT_STATUS_ERROR,err));
+        });
     } 
 });
 

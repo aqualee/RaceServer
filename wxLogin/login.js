@@ -11,7 +11,7 @@ class LoginError extends Error {
     }
 }
 
-module.exports = co.wrap(function* login({ appId, appSecret, code }) {
+/*module.exports = co.wrap(function* login({ appId, appSecret, code }) {
     const exchangeUrl = buildExchangeUrl(appId, appSecret, code);
     const [response, body] = yield pify(request.get, { multiArgs: true })({ url: exchangeUrl, json: true });
 
@@ -23,7 +23,28 @@ module.exports = co.wrap(function* login({ appId, appSecret, code }) {
     }
 
     throw new LoginError('使用 jscode 从微信服务器换取 session_key 失败', body);
-});
+});*/
+
+
+module.exports = function login({ appId, appSecret, code }){
+    return new Promise(function (resolve,reject){
+        const exchangeUrl = buildExchangeUrl(appId, appSecret, code);
+        request.get({ url: exchangeUrl, json: true ,function(response,body){
+            if (body && 'session_key' in body) {
+            
+                resolve({
+                    sessionKey: body.session_key,
+                    openId: body.openid
+                });
+                return;
+            }
+
+            reject(new LoginError('使用 jscode 从微信服务器换取 session_key 失败', body));
+        }});
+    });
+}
+
+
 
 module.exports.LoginError = LoginError;
 
