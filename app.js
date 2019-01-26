@@ -203,6 +203,10 @@ function setInviteRelation(invite_type, masterId, friendId,friendHead){
 
 //获取助力好友
 app.post('/invite/getListByFriendAssist',function (req,res){
+    if(req.session.openId==null){
+        res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE,{},"session 过期"));
+        return;
+    }
     redisClient.hget("openId:"+req.session.openId ,"friendHelp",(err,v)=>{
         v = v || {};
         var  arr = [];
@@ -224,6 +228,11 @@ app.post('/invite/getListByFriendAssist',function (req,res){
 
 
 app.post('/invite/getFriendAward',function (req,res){
+    if(req.session.openId==null){
+        res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE,{},"session 过期"));
+        return;
+    }
+
     if(req.session.friendHelpParam == null){
         res.send(getParam(constants.CLIENT_STATUS_ERROR,{},"参数未找到"));
         return;
