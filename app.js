@@ -13,7 +13,7 @@ const constants= require('./constants');
 
 const port =3000; 
 const appId = 'wx70940596da02587d';
-const appSecret= "3a443af56d1d669f392a2d086e6cf0a7";
+const appSecret= "7bd65799b6e303cbcc942a3e09eca98b";
 
 var app = express()
 var redisClient= redis.createClient(
@@ -153,6 +153,7 @@ app.post('/user/weakLogin',function (req,res){
 
 const INVITE_KEY= "invite";
 const FRIEND_HELP_KEY="friendHelp";
+const DAILY_SIGN = "DAILY_SIGN";
 
 
 //在redis 里面设置这个人的邀请好友关系
@@ -414,44 +415,48 @@ app.post('/user/getSign',function(req,res){
     if(req.session && req.session.openId){
             //今天是哪一天
             //是否已经签到
-            if(!req.session.signDay){
-                req.session.signDay=0;            
-            }
 
-            if(!req.session.signDate){
-                req.session.signDate = 0;         
-            }
-
-
-            var day;
-            var isSign;
-            if(afterOneDay(req.session.signDate)){
-                if(req.session.signDay >= 7){
-                    req.session.signDay = 0;
+            redisClient.hget("openId:"+req.session.openId ,DAILY_SIGN,(err,v)=>{
+                v =v || {};
+                if(v.signDay == null){
+                    v.signDay=0;            
                 }
-                //过了一天
-                day = req.session.signDay;
-                isSign = false;
-                //response.send(getParam(constants.CLIENT_STATUS_OK,{day:req.session.signDay,isSign:false }));
-            }else{
-                //签到过来
-                day = req.session.signDay-1;
-                isSign = true;
-                //response.send(getParam(constants.CLIENT_STATUS_OK,{day:req.session.signDay-1,isSign:true }));
-            }
-
-            var retObj = [];
-            for (var i=0;i<constants.SIGN_GOLD.length;i++ ){
-                if(i<day){
-                    retObj.push({sign_day:i,sign_is_receive:2,sign_gold:constants.SIGN_GOLD[i]});
-                }else if(i == day){
-                    retObj.push({sign_day:i,sign_is_receive:isSign?2:1,sign_gold:constants.SIGN_GOLD[i]});
-                }else {
-                    retObj.push({sign_day:i,sign_is_receive:0,sign_gold:constants.SIGN_GOLD[i]});
+    
+                if(v.signDate == null){
+                    v.signDate = 0;         
                 }
-            }
-            
-            res.send(getParam(constants.CLIENT_STATUS_OK,retObj));
+    
+    
+                var day;
+                var isSign;
+                if(afterOneDay(v.signDate)){
+                    if(v.signDay >= 7){
+                        v.signDay = 0;
+                    }
+                    //过了一天
+                    day = v.signDay;
+                    isSign = false;
+                }else{
+                    //签到过来
+                    day = v.signDay-1;
+                    isSign = true;
+                }
+    
+                var retObj = [];
+                for (var i=0;i<constants.SIGN_GOLD.length;i++ ){
+                    if(i<day){
+                        retObj.push({sign_day:i,sign_is_receive:2,sign_gold:constants.SIGN_GOLD[i]});
+                    }else if(i == day){
+                        retObj.push({sign_day:i,sign_is_receive:isSign?2:1,sign_gold:constants.SIGN_GOLD[i]});
+                    }else {
+                        retObj.push({sign_day:i,sign_is_receive:0,sign_gold:constants.SIGN_GOLD[i]});
+                    }
+                }
+                
+                res.send(getParam(constants.CLIENT_STATUS_OK,retObj));
+                redisClient.hset("openId:"+req.session.openId,DAILY_SIGN,v);
+            });
+                   
     }else{
         res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE));
     }
@@ -461,15 +466,26 @@ app.post('/user/getSign',function(req,res){
 //执行签到
 app.post('/user/doSign',function(req,res){
     if(req.session && req.session.openId){
-            if(afterOneDay(req.session.signDate)){
+        redisClient.hget("openId:"+req.session.openId ,DAILY_SIGN,(err,v)=>{
+            v =v || {};
+            if(v.signDay == null){
+                v.signDay=0;            
+            }
+            if(v.signDate == null){
+                v.signDate = 0;         
+            }
+
+            if(afterOneDay(v.signDate)){
                 //过了一天,可以签到
-                req.session.signDay++;
-                req.session.signDate = Date.now();
+                v.signDay++;
+                v.signDate = Date.now();
                 res.send(getParam(constants.CLIENT_STATUS_OK));
+                redisClient.hset("openId:"+req.session.openId,DAILY_SIGN,v);
             }else{
                 //签到过了
                 res.send(getParam(constants.CLIENT_STATUS_ERROR));
             }
+        });
     }else{
         res.send(getParam(constants.CLIENT_STATUS_SESSION_EXPIRE));
     }

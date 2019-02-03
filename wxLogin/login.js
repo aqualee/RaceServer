@@ -29,7 +29,7 @@ class LoginError extends Error {
 module.exports = function login({ appId, appSecret, code }){
     return new Promise(function (resolve,reject){
         const exchangeUrl = buildExchangeUrl(appId, appSecret, code);
-        request.get({ url: exchangeUrl, json: true ,function(response,body){
+        request.get(exchangeUrl,{json: true},function(err,response,body){
             if (body && 'session_key' in body) {
             
                 resolve({
@@ -40,7 +40,7 @@ module.exports = function login({ appId, appSecret, code }){
             }
 
             reject(new LoginError('使用 jscode 从微信服务器换取 session_key 失败', body));
-        }});
+        });
     });
 }
 
