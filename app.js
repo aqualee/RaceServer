@@ -9,7 +9,7 @@ var mysql = require('mysql');
 var fs = require('fs');
 var https = require('https');
 
-var privateKey  = fs.readFileSync('/ssl/private.pem', 'utf8'),
+var privateKey  = fs.readFileSync('/ssl/private.pem', 'utf8');
 var certificate = fs.readFileSync('/ssl/file.crt', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 
