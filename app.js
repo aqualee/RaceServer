@@ -6,12 +6,20 @@ const login = require('./wxLogin/login');
 const WXBizDataCrypt = require('./wxLogin/WXBizDataCrypt');
 var redis = require('redis');
 var mysql = require('mysql');
+var fs = require('fs');
+var https = require('https');
+
+var privateKey  = fs.readFileSync('/ssl/private.pem', 'utf8'),
+var certificate = fs.readFileSync('/ssl/file.crt', 'utf8');
+var credentials = {key: privateKey, cert: certificate};
+
 
 
 //const co = require('co');
 const constants= require('./constants');
 
 const port =3000; 
+const sslPort= 3001;
 const appId = 'wx70940596da02587d';
 const appSecret= "7bd65799b6e303cbcc942a3e09eca98b";
 
@@ -168,13 +176,13 @@ function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName
             if(res && res.length > 0){
             }else{
                 redisClient.hget("openId:"+masterId ,INVITE_KEY,(err,v)=>{
-                    v = v || {};
+                    v = JSON.parse(v) || {};
                     if(v.hasOwnProperty(friendId)){
 
                                
                     }else{
                         v[friendId] = [friendHead,friendName]; //头像
-                        redisClient.hset("openId:"+masterId,INVITE_KEY,v);
+                        redisClient.hset("openId:"+masterId,INVITE_KEY,JSON.stringify(v),redis.print);
                     }
 
             })
@@ -183,15 +191,15 @@ function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName
         )                
     }else if(invite_type =="invite_help"){
         redisClient.hget("openId:"+masterId ,FRIEND_HELP_KEY,(err,v)=>{
-            v = v || {};
+            v = JSON.parse(v) || {};
             if(v.hasOwnProperty(friendId)){            
                 if(v[friendId][1] == false && afterOneDay(v[friendId][0]) ){
                     v[friendId][1] = true;   
-                    redisClient.hset("openId:"+masterId,FRIEND_HELP_KEY,v);
+                    redisClient.hset("openId:"+masterId,FRIEND_HELP_KEY,JSON.stringify(v),redis.print);
                 }            
             }else{
                 v[friendId] = [0,true,friendHead,friendName]; //上次领奖的时间戳,是否领过,头像,名字
-                redisClient.hset("openId:"+masterId,FRIEND_HELP_KEY,v);
+                redisClient.hset("openId:"+masterId,FRIEND_HELP_KEY,JSON.stringify(v),redis.print);
             }        
        })
     }
@@ -205,7 +213,7 @@ app.post('/invite/getListByInvite',function (req,res){
         return;
     }
     redisClient.hget("openId:"+req.session.openId ,INVITE_KEY,(err,v)=>{
-        v = v || {};
+        v = JSON.parse(v) || {};
         var  arr = [];
         for(var k in v){
                 arr.push({invite_id:k,user_avatar_url:v[k][0],invite_is_receive:1,user_nickname:v[k][1]});
@@ -223,11 +231,11 @@ app.post('/invite/getInviteAward',function (req,res){
     }
     let inviteId = req.body.invite_id;
     redisClient.hget("openId:"+req.session.openId ,INVITE_KEY,(err,v)=>{
-        v = v || {};
+        v = JSON.parse(v) || {};
         if(inviteId in v){
             delete v[inviteId];
             res.send(getParam(constants.CLIENT_STATUS_OK));
-            redisClient.hset("openId:"+req.session.openId,INVITE_KEY,v);
+            redisClient.hset("openId:"+req.session.openId,INVITE_KEY,JSON.stringify(v),redis.print);
             return;
         }
         res.send(getParam(constants.CLIENT_STATUS_ERROR));
@@ -243,7 +251,7 @@ app.post('/invite/getListByFriendAssist',function (req,res){
         return;
     }
     redisClient.hget("openId:"+req.session.openId ,FRIEND_HELP_KEY,(err,v)=>{
-        v = v || {};
+        v = JSON.parse(v) || {};
         var  arr = [];
         var i=0;
         for(var k in v){
@@ -278,7 +286,7 @@ app.post('/invite/getFriendAward',function (req,res){
     }
 
     redisClient.hget("openId:"+req.session.openId ,FRIEND_HELP_KEY,(err,v)=>{
-        v = v || {};
+        v = JSON.parse(v) || {};
         for(var fid of req.session.friendHelpParam){
             v[fid][1] = false;
             v[fid][0] = Date.now();            
@@ -293,7 +301,7 @@ app.post('/invite/getFriendAward',function (req,res){
             }
         }
 
-        redisClient.hset("openId:"+req.session.openId,FRIEND_HELP_KEY,v);
+        redisClient.hset("openId:"+req.session.openId,FRIEND_HELP_KEY,JSON.stringify(v),redis.print);
     });
 });
 
@@ -417,7 +425,7 @@ app.post('/user/getSign',function(req,res){
             //是否已经签到
 
             redisClient.hget("openId:"+req.session.openId ,DAILY_SIGN,(err,v)=>{
-                v =v || {};
+                v = JSON.parse(v) || {};
                 if(v.signDay == null){
                     v.signDay=0;            
                 }
@@ -454,7 +462,7 @@ app.post('/user/getSign',function(req,res){
                 }
                 
                 res.send(getParam(constants.CLIENT_STATUS_OK,retObj));
-                redisClient.hset("openId:"+req.session.openId,DAILY_SIGN,v);
+                redisClient.hset("openId:"+req.session.openId,DAILY_SIGN,JSON.stringify(v),redis.print);
             });
                    
     }else{
@@ -467,7 +475,7 @@ app.post('/user/getSign',function(req,res){
 app.post('/user/doSign',function(req,res){
     if(req.session && req.session.openId){
         redisClient.hget("openId:"+req.session.openId ,DAILY_SIGN,(err,v)=>{
-            v =v || {};
+            v = JSON.parse(v) || {};
             if(v.signDay == null){
                 v.signDay=0;            
             }
@@ -480,7 +488,7 @@ app.post('/user/doSign',function(req,res){
                 v.signDay++;
                 v.signDate = Date.now();
                 res.send(getParam(constants.CLIENT_STATUS_OK));
-                redisClient.hset("openId:"+req.session.openId,DAILY_SIGN,v);
+                redisClient.hset("openId:"+req.session.openId,DAILY_SIGN,JSON.stringify(v),redis.print);
             }else{
                 //签到过了
                 res.send(getParam(constants.CLIENT_STATUS_ERROR));
@@ -517,7 +525,9 @@ app.get('/sys/setSW',function (req,res){
 });
 
  
-const server =app.listen(port,()=>{console.log("server listening on port "+port)})
+const server =app.listen(port,()=>{console.log("http server listening on port "+port)})
+
+const sslServer = https.createServer(credentials, app).listen(sslPort,()=>{console.log("https server listening on port "+sslPort)});
 
 
 
@@ -529,12 +539,15 @@ process.on('uncaughtException', function(err) {
 
 process.on('SIGINT', () => {
     redisClient.quit();
-    server.close(() => {
-        pool.end(
-            (err)=>{
-                console.log('Process terminated');
-                process.exit(code=0);
-            }
-        )
-    })
+    sslServer.close(()=>{
+        server.close(() => {
+            pool.end(
+                (err)=>{
+                    console.log('Process terminated');
+                    process.exit(code=0);
+                }
+            )
+        })
+    });
+   
 })
