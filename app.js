@@ -425,6 +425,7 @@ function afterOneDay(before){
 
 //签到信息
 app.post('/user/getSign',function(req,res){
+    console.log(req.sessionID);
     if(req.session && req.session.openId){
             //今天是哪一天
             //是否已经签到
