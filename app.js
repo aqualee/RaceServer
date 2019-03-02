@@ -9,8 +9,13 @@ var mysql = require('mysql');
 var fs = require('fs');
 var https = require('https');
 
-var privateKey  = fs.readFileSync('/ssl/private.pem', 'utf8');
-var certificate = fs.readFileSync('/ssl/file.crt', 'utf8');
+try {
+    var privateKey  = fs.readFileSync('/ssl/1878801_www.joydz.com.key', 'utf8');
+    var certificate = fs.readFileSync('/ssl/1878801_www.joydz.com.pem', 'utf8');
+} catch (error) {
+    
+}
+
 var credentials = {key: privateKey, cert: certificate};
 
 
