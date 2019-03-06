@@ -179,24 +179,25 @@ function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName
     }
 
     if(invite_type == "invite_diamond"){
-        //看数据库有没有，没有就是新用户
-        getUserInfo(friendId).then((res)=>{
+      /*  getUserInfo(friendId).then((res)=>{
             if(res && res.length > 0){
             }else{
-                redisClient.hget("openId:"+masterId ,INVITE_KEY,(err,v)=>{
-                    v = JSON.parse(v) || {};
-                    if(v.hasOwnProperty(friendId)){
-
-                               
-                    }else{
-                        v[friendId] = [friendHead,friendName]; //头像
-                        redisClient.hset("openId:"+masterId,INVITE_KEY,JSON.stringify(v),redis.print);
-                    }
-
-            })
+ 
             }
         }
-        )                
+        )*/
+        
+        redisClient.hget("openId:"+masterId ,INVITE_KEY,(err,v)=>{
+            v = JSON.parse(v) || {};
+            if(v.hasOwnProperty(friendId)){
+                console.log("inviteid has already save");                       
+            }else{
+                v[friendId] = [friendHead,friendName,1]; //头像
+                redisClient.hset("openId:"+masterId,INVITE_KEY,JSON.stringify(v),redis.print);
+            }
+
+    })
+
     }else if(invite_type =="invite_help"){
         redisClient.hget("openId:"+masterId ,FRIEND_HELP_KEY,(err,v)=>{
             v = JSON.parse(v) || {};
@@ -226,7 +227,7 @@ app.post('/invite/getListByInvite',function (req,res){
         for(var k in v){
                 arr.push({invite_id:k,
                     user_avatar_url:v[k][0],
-                    invite_is_receive:1,
+                    invite_is_receive:v[k][2],
                     user_nickname:v[k][1],
                     invite_diamond:300
                 });
@@ -246,8 +247,15 @@ app.post('/invite/getInviteAward',function (req,res){
     redisClient.hget("openId:"+req.session.openId ,INVITE_KEY,(err,v)=>{
         v = JSON.parse(v) || {};
         if(inviteId in v){
-            delete v[inviteId];
-            res.send(getParam(constants.CLIENT_STATUS_OK));
+            //delete v[inviteId];
+            if(v[inviteId][2] == 1){
+                v[inviteId][2] = 0;
+                res.send(getParam(constants.CLIENT_STATUS_OK));
+            }else{
+                //已经领取过
+                res.send(getParam(constants.CLIENT_STATUS_ERROR));
+            }
+
             redisClient.hset("openId:"+req.session.openId,INVITE_KEY,JSON.stringify(v),redis.print);
             return;
         }
