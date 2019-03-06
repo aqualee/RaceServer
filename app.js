@@ -227,7 +227,9 @@ app.post('/invite/getListByInvite',function (req,res){
                 arr.push({invite_id:k,
                     user_avatar_url:v[k][0],
                     invite_is_receive:1,
-                    user_nickname:v[k][1]});
+                    user_nickname:v[k][1],
+                    invite_diamond:300
+                });
         }
         res.send(getParam(constants.CLIENT_STATUS_OK,arr));
     });
