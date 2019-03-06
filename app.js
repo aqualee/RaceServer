@@ -113,6 +113,7 @@ app.get('/',function (req,res){
 app.post('/user/login',function (req,res){
     var msg = req.body;
     var code = msg.code; 
+    console.log(JSON.stringify(msg));
 
     if(req.session.isAuth){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.userInfo.openId}));
@@ -143,6 +144,7 @@ app.post('/user/login',function (req,res){
 app.post('/user/weakLogin',function (req,res){
     var msg = req.body;
     var code = msg.code;
+    console.log(JSON.stringify(msg));
 
     if(req.session.openId){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.openId}));
@@ -171,6 +173,7 @@ const DAILY_SIGN = "DAILY_SIGN";
 
 //在redis 里面设置这个人的邀请好友关系
 function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName){
+    //console.log(invite_type,masterId);
     if(invite_type == null || masterId == null){
         return;
     }
@@ -221,7 +224,10 @@ app.post('/invite/getListByInvite',function (req,res){
         v = JSON.parse(v) || {};
         var  arr = [];
         for(var k in v){
-                arr.push({invite_id:k,user_avatar_url:v[k][0],invite_is_receive:1,user_nickname:v[k][1]});
+                arr.push({invite_id:k,
+                    user_avatar_url:v[k][0],
+                    invite_is_receive:1,
+                    user_nickname:v[k][1]});
         }
         res.send(getParam(constants.CLIENT_STATUS_OK,arr));
     });
@@ -261,7 +267,11 @@ app.post('/invite/getListByFriendAssist',function (req,res){
         var i=0;
         for(var k in v){
             if(v[k][1]){
-                arr.push({invite_id:k,user_avatar_url:v[k][2],user_nickname:v[k][3]});
+                arr.push({
+                    invite_id:k,
+                    user_avatar_url:v[k][2],
+                    user_nickname:v[k][3]
+                });
                 i++;
                 if(i>=3){
                     break;
@@ -425,7 +435,6 @@ function afterOneDay(before){
 
 //签到信息
 app.post('/user/getSign',function(req,res){
-    console.log(req.sessionID);
     if(req.session && req.session.openId){
             //今天是哪一天
             //是否已经签到
