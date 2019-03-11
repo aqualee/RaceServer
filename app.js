@@ -312,19 +312,19 @@ app.post('/invite/getFriendAward',function (req,res){
 
     redisClient.hget("openId:"+req.session.openId ,FRIEND_HELP_KEY,(err,v)=>{
         v = JSON.parse(v) || {};
-        for(var fid of req.session.friendHelpParam){
-            v[fid][1] = false;
-            v[fid][0] = Date.now();            
+        for(var item of req.session.friendHelpParam){
+            v[item.invite_id][1] = false;
+            v[item.invite_id][0] = Date.now();            
         }
         
         res.send(getParam(constants.CLIENT_STATUS_OK));
         //清理一下,防止内存泄漏
-        for(var k in v){
+      /*  for(var k in v){
             if(v[k][1]== false && afterOneDay(v[k][0]))
             {
                 delete v[k];
             }
-        }
+        }*/
 
         redisClient.hset("openId:"+req.session.openId,FRIEND_HELP_KEY,JSON.stringify(v),redis.print);
     });
