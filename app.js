@@ -365,6 +365,7 @@ app.post('/user/getData',function(req,response){
                 req.session.isDBCreate = true;
                 response.send(getParam(constants.CLIENT_STATUS_OK,JSON.parse(rs.data)));
             }else{
+                req.session.isDBCreate = false;
                 //没有数据
                 response.send(getParam(constants.CLIENT_STATUS_OK,{userInfo:null}));
                 //判断是否有邀请
