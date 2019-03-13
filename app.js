@@ -161,7 +161,7 @@ app.post('/user/weakLogin',function (req,res){
             req.session.openId= ret.openId;
             req.session.session_key= ret.sessionKey;
             
-            console.log(ret);
+            //console.log(ret);
             res.send(getParam(constants.CLIENT_STATUS_OK,{openId:ret.openId,function_privilege:shareSwitch}));
             setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
 
@@ -180,7 +180,7 @@ const DAILY_SIGN = "DAILY_SIGN";
 
 //在redis 里面设置这个人的邀请好友关系
 function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName){
-    //console.log(invite_type,masterId);
+    console.log(invite_type,masterId,friendId);
     if(invite_type == null || masterId == null){
         return;
     }
