@@ -113,7 +113,7 @@ app.get('/',function (req,res){
 app.post('/user/login',function (req,res){
     var msg = req.body;
     var code = msg.code; 
-    console.log(JSON.stringify(msg));
+    //console.log(JSON.stringify(msg));
 
     if(req.session.isAuth){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.userInfo.openId}));
@@ -144,7 +144,7 @@ app.post('/user/login',function (req,res){
 app.post('/user/weakLogin',function (req,res){
     var msg = req.body;
     var code = msg.code;
-    console.log(JSON.stringify(msg));
+    //console.log(JSON.stringify(msg));
 
     if(req.session.openId){
         res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.openId}));
