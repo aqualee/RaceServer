@@ -52,6 +52,7 @@ var genSessionID = function (req,res,next){
 }
 
 
+
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 app.use(genSessionID);
@@ -69,6 +70,12 @@ app.use(session({
     saveUninitialized: false
 }));
 
+
+var shareSwitch = 0;
+redisClient.hget(constants.SYSTEM_CONFIG_KEY,"shareSwitch",(err,v)=>{
+    shareSwitch = v?parseInt(v):0;
+    console.log("shareSwitch is:"+shareSwitch);
+})
 
 
 if (app.get('env') === 'production') {
@@ -116,7 +123,7 @@ app.post('/user/login',function (req,res){
     //console.log(JSON.stringify(msg));
 
     if(req.session.isAuth){
-        res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.userInfo.openId}));
+        res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.userInfo.openId,function_privilege:shareSwitch}));
         setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl,req.session.userInfo.nickName);
     }else{
         login({appId, appSecret,code}).then(function(ret){
@@ -130,7 +137,7 @@ app.post('/user/login',function (req,res){
             req.session.userInfo = userInfo;
             req.session.isAuth = true;
 
-            res.send(getParam(constants.CLIENT_STATUS_OK,{openId:userInfo.openId}));
+            res.send(getParam(constants.CLIENT_STATUS_OK,{openId:userInfo.openId,function_privilege:shareSwitch}));
             setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId,req.session.userInfo.avatarUrl,req.session.userInfo.nickName);
         }).catch(function(err){
             console.log(err);
@@ -147,7 +154,7 @@ app.post('/user/weakLogin',function (req,res){
     //console.log(JSON.stringify(msg));
 
     if(req.session.openId){
-        res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.openId}));
+        res.send(getParam(constants.CLIENT_STATUS_OK,{openId:req.session.openId,function_privilege:shareSwitch}));
         setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
     }else{
         login({appId, appSecret,code}).then(function(ret){
@@ -155,7 +162,7 @@ app.post('/user/weakLogin',function (req,res){
             req.session.session_key= ret.sessionKey;
             
             console.log(ret);
-            res.send(getParam(constants.CLIENT_STATUS_OK,{openId:ret.openId}));
+            res.send(getParam(constants.CLIENT_STATUS_OK,{openId:ret.openId,function_privilege:shareSwitch}));
             setInviteRelation(msg.invite_type,msg.user_invite_uid,req.session.openId);
 
         }).catch(function(err){
@@ -525,12 +532,12 @@ app.post('/user/doSign',function(req,res){
 });
 
 
-app.get('/sys/getSW',function (req,res){
+/*app.get('/sys/getSW',function (req,res){
    redisClient.hget(constants.SYSTEM_CONFIG_KEY,"shareSwitch",(err,v)=>{
         v = v?parseInt(v):0;
         res.send(getParam(constants.CLIENT_STATUS_OK,{open:v}));
    })
-});
+});*/
 
 app.get('/sys/setSW',function (req,res){
 
