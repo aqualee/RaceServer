@@ -256,7 +256,7 @@ app.post('/invite/getInviteAward',function (req,res){
         if(inviteId in v){
             //delete v[inviteId];
             if(v[inviteId][2] == 1){
-                v[inviteId][2] = 0;
+                v[inviteId][2] = 2;
                 res.send(getParam(constants.CLIENT_STATUS_OK));
             }else{
                 //已经领取过
