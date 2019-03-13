@@ -543,11 +543,13 @@ app.get('/sys/setSW',function (req,res){
 
     if(req.query.a == "1"){
         redisClient.hset(constants.SYSTEM_CONFIG_KEY,"shareSwitch",1);
+        shareSwitch = 1;
         res.send("分享打开");
         return;
 
     }else if(req.query.a == "0"){
         redisClient.hset(constants.SYSTEM_CONFIG_KEY,"shareSwitch",0);
+        shareSwitch = 0;
         res.send("分享关闭");
         return;
     }
