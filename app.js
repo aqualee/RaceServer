@@ -185,27 +185,7 @@ function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName
         return;
     }
 
-    if(invite_type == "invite_diamond"){
-      /*  getUserInfo(friendId).then((res)=>{
-            if(res && res.length > 0){
-            }else{
- 
-            }
-        }
-        )*/
-        
-        redisClient.hget("openId:"+masterId ,INVITE_KEY,(err,v)=>{
-            v = JSON.parse(v) || {};
-            if(v.hasOwnProperty(friendId)){
-                console.log("inviteid has already save");                       
-            }else{
-                v[friendId] = [friendHead,friendName,1]; //头像
-                redisClient.hset("openId:"+masterId,INVITE_KEY,JSON.stringify(v),redis.print);
-            }
-
-    })
-
-    }else if(invite_type =="invite_help"){
+    if(invite_type =="invite_help"){
         redisClient.hget("openId:"+masterId ,FRIEND_HELP_KEY,(err,v)=>{
             v = JSON.parse(v) || {};
             if(v.hasOwnProperty(friendId)){            
@@ -218,6 +198,25 @@ function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName
                 redisClient.hset("openId:"+masterId,FRIEND_HELP_KEY,JSON.stringify(v),redis.print);
             }        
        })
+    }else{
+    /*  getUserInfo(friendId).then((res)=>{
+                if(res && res.length > 0){
+                }else{
+    
+                }
+            }
+            )*/
+            
+            redisClient.hget("openId:"+masterId ,INVITE_KEY,(err,v)=>{
+                v = JSON.parse(v) || {};
+                if(v.hasOwnProperty(friendId)){
+                    console.log("inviteid has already save");                       
+                }else{
+                    v[friendId] = [friendHead,friendName,1]; //头像
+                    redisClient.hset("openId:"+masterId,INVITE_KEY,JSON.stringify(v),redis.print);
+                }
+
+        })
     }
 }
 
