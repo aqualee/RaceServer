@@ -180,7 +180,7 @@ const DAILY_SIGN = "DAILY_SIGN";
 
 //在redis 里面设置这个人的邀请好友关系
 function setInviteRelation(invite_type, masterId, friendId,friendHead,friendName){
-    console.log(invite_type,masterId,friendId);
+   // console.log(invite_type,masterId,friendId);
     if(invite_type == null || masterId == null){
         return;
     }
